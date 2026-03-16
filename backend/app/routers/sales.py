@@ -26,7 +26,7 @@ def list_sales(
     _=Depends(get_current_user),
 ):
     q = db.query(models.SalesRecord)
-    if marketplace:
+    if marketplace and marketplace != "all":
         q = q.filter(models.SalesRecord.marketplace == marketplace)
     return q.order_by(models.SalesRecord.sale_date.desc()).offset(skip).limit(limit).all()
 
@@ -49,12 +49,13 @@ def create_sale(
 # ── Analytics ─────────────────────────────────
 @router.get("/analytics/top-products")
 def top_products(
+    marketplace: Optional[str] = Query(None),
     limit: int = 5,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
     """Products ranked by total revenue."""
-    rows = (
+    q = (
         db.query(
             models.Product.id,
             models.Product.name,
@@ -62,7 +63,11 @@ def top_products(
             func.sum(models.SalesRecord.quantity).label("total_units"),
         )
         .join(models.SalesRecord, models.SalesRecord.product_id == models.Product.id)
-        .group_by(models.Product.id)
+    )
+    if marketplace and marketplace != "all":
+        q = q.filter(models.SalesRecord.marketplace == marketplace)
+    rows = (
+        q.group_by(models.Product.id)
         .order_by(func.sum(models.SalesRecord.revenue).desc())
         .limit(limit)
         .all()
@@ -75,12 +80,13 @@ def top_products(
 
 @router.get("/analytics/most-returned")
 def most_returned(
+    marketplace: Optional[str] = Query(None),
     limit: int = 5,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    """Products with the most returns."""
-    rows = (
+    """Products with most returns."""
+    q = (
         db.query(
             models.Product.id,
             models.Product.name,
@@ -88,7 +94,11 @@ def most_returned(
         )
         .join(models.SalesRecord, models.SalesRecord.product_id == models.Product.id)
         .filter(models.SalesRecord.returned == True)
-        .group_by(models.Product.id)
+    )
+    if marketplace and marketplace != "all":
+        q = q.filter(models.SalesRecord.marketplace == marketplace)
+    rows = (
+        q.group_by(models.Product.id)
         .order_by(func.count(models.SalesRecord.id).desc())
         .limit(limit)
         .all()
@@ -98,20 +108,25 @@ def most_returned(
 
 @router.get("/analytics/trends")
 def sales_trends(
+    marketplace: Optional[str] = Query(None),
     days: int = 30,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    """Daily revenue for the last N days."""
+    """Daily revenue for last N days."""
     since = datetime.utcnow() - timedelta(days=days)
-    rows = (
+    q = (
         db.query(
             func.date(models.SalesRecord.sale_date).label("day"),
             func.sum(models.SalesRecord.revenue).label("revenue"),
             func.count(models.SalesRecord.id).label("orders"),
         )
         .filter(models.SalesRecord.sale_date >= since)
-        .group_by(func.date(models.SalesRecord.sale_date))
+    )
+    if marketplace and marketplace != "all":
+        q = q.filter(models.SalesRecord.marketplace == marketplace)
+    rows = (
+        q.group_by(func.date(models.SalesRecord.sale_date))
         .order_by(func.date(models.SalesRecord.sale_date))
         .all()
     )
@@ -120,12 +135,16 @@ def sales_trends(
 
 @router.get("/analytics/bundled-items")
 def bundled_items(
+    marketplace: Optional[str] = Query(None),
     limit: int = 5,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
     """Most frequently bundled product pairs."""
-    records = db.query(models.SalesRecord).filter(models.SalesRecord.bundled_with != "").all()
+    q = db.query(models.SalesRecord).filter(models.SalesRecord.bundled_with != "")
+    if marketplace and marketplace != "all":
+        q = q.filter(models.SalesRecord.marketplace == marketplace)
+    records = q.all()
     pair_counter: Counter = Counter()
     for r in records:
         for bid in r.bundled_with.split(","):
@@ -149,12 +168,15 @@ def bundled_items(
 
 @router.get("/analytics/competitor-pricing")
 def competitor_pricing(
+    marketplace: Optional[str] = Query(None),
     product_id: Optional[int] = None,
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
     """Competitor prices vs our price per product."""
     q = db.query(models.CompetitorPrice).join(models.Product)
+    if marketplace and marketplace != "all":
+        q = q.filter(models.CompetitorPrice.marketplace == marketplace)
     if product_id:
         q = q.filter(models.CompetitorPrice.product_id == product_id)
     rows = q.all()

@@ -54,13 +54,13 @@ export const productsApi = {
 };
 
 export const salesApi = {
-  trends: (days = 30) => api.get("/api/sales/analytics/trends", { params: { days } }),
-  topProducts: (limit = 5) => api.get("/api/sales/analytics/top-products", { params: { limit } }),
-  mostReturned: (limit = 5) => api.get("/api/sales/analytics/most-returned", { params: { limit } }),
-  bundledItems: (limit = 5) => api.get("/api/sales/analytics/bundled-items", { params: { limit } }),
-  competitorPricing: (productId?: number) =>
+  trends: (days = 30, marketplace?: string) => api.get("/api/sales/analytics/trends", { params: { days, marketplace } }),
+  topProducts: (limit = 5, marketplace?: string) => api.get("/api/sales/analytics/top-products", { params: { limit, marketplace } }),
+  mostReturned: (limit = 5, marketplace?: string) => api.get("/api/sales/analytics/most-returned", { params: { limit, marketplace } }),
+  bundledItems: (limit = 5, marketplace?: string) => api.get("/api/sales/analytics/bundled-items", { params: { limit, marketplace } }),
+  competitorPricing: (productId?: number, marketplace?: string) =>
     api.get("/api/sales/analytics/competitor-pricing", {
-      params: productId ? { product_id: productId } : {},
+      params: { ...(productId ? { product_id: productId } : {}), marketplace },
     }),
 };
 

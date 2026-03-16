@@ -84,7 +84,13 @@ async def ask_insight(
         f"Question: {payload.question}"
     )
 
-    if settings.OPENAI_API_KEY and settings.OPENAI_API_KEY.startswith("sk-"):
+    is_real_key = (
+        settings.OPENAI_API_KEY
+        and settings.OPENAI_API_KEY.startswith("sk-")
+        and "your" not in settings.OPENAI_API_KEY.lower()
+        and len(settings.OPENAI_API_KEY) > 20
+    )
+    if is_real_key:
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         completion = await client.chat.completions.create(

@@ -43,7 +43,7 @@ db.refresh(demo_user)
 print(f"  Created user: {demo_user.email} / demo1234")
 
 # ── Products ──────────────────────────────────
-MARKETPLACES = ["Shopee", "Taobao", "Temu", "Facebook Marketplace", "JD"]
+MARKETPLACES = ["Taobao", "Pinduoduo", "Amazon", "eBay"]
 CATEGORIES = ["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"]
 
 product_data = [
@@ -62,22 +62,24 @@ product_data = [
 ]
 
 products = []
+# Create 3 products per marketplace for better distribution
 for i, (name, cat, price, stock) in enumerate(product_data):
-    p = Product(
-        name=name,
-        category=cat,
-        price=price,
-        stock=stock,
-        marketplace=MARKETPLACES[i % len(MARKETPLACES)],
-        image_url=f"https://picsum.photos/seed/{i+10}/400/400",
-    )
-    db.add(p)
-    products.append(p)
+    for mkt_idx, marketplace in enumerate(MARKETPLACES):
+        p = Product(
+            name=f"{name} ({marketplace})" if mkt_idx > 0 else name,
+            category=cat,
+            price=price,
+            stock=stock,
+            marketplace=marketplace,
+            image_url=f"https://picsum.photos/seed/{i+10}-{mkt_idx}/400/400",
+        )
+        db.add(p)
+        products.append(p)
 
 db.commit()
 for p in products:
     db.refresh(p)
-print(f"  Created {len(products)} products")
+print(f"  Created {len(products)} products across {len(MARKETPLACES)} marketplaces")
 
 # ── Sales Records ─────────────────────────────
 sales = []
@@ -94,14 +96,14 @@ for day_offset in range(60):
             revenue=round(product.price * qty * random.uniform(0.9, 1.1), 2),
             returned=returned,
             sale_date=date,
-            marketplace=random.choice(MARKETPLACES),
+            marketplace=product.marketplace,  # Use product's marketplace
             bundled_with=str(other.id) if random.random() < 0.35 else "",
         )
         sales.append(sale)
         db.add(sale)
 
 db.commit()
-print(f"  Created {len(sales)} sales records")
+print(f"  Created {len(sales)} sales records across marketplaces")
 
 # ── Engagement Metrics ────────────────────────
 for day_offset in range(60):
@@ -115,7 +117,7 @@ for day_offset in range(60):
             cart_adds=random.randint(5, int(visits * 0.25)),
             click_through_rate=round(random.uniform(2.5, 18.0), 2),
             image_views=random.randint(visits, visits * 3),
-            marketplace=random.choice(MARKETPLACES),
+            marketplace=product.marketplace,  # Use product's marketplace
         )
         db.add(metric)
 
@@ -160,7 +162,7 @@ for product in products:
             text=text,
             rating=random.choice([4, 5]),
             sentiment="positive",
-            marketplace=random.choice(MARKETPLACES),
+            marketplace=product.marketplace,  # Use product's marketplace
             created_at=datetime.utcnow() - timedelta(days=random.randint(0, 60)),
         ))
 
@@ -171,7 +173,7 @@ for product in products:
             text=text,
             rating=3,
             sentiment="neutral",
-            marketplace=random.choice(MARKETPLACES),
+            marketplace=product.marketplace,  # Use product's marketplace
             created_at=datetime.utcnow() - timedelta(days=random.randint(0, 60)),
         ))
 
@@ -182,7 +184,7 @@ for product in products:
             text=text,
             rating=random.choice([1, 2]),
             sentiment="negative",
-            marketplace=random.choice(MARKETPLACES),
+            marketplace=product.marketplace,  # Use product's marketplace
             created_at=datetime.utcnow() - timedelta(days=random.randint(0, 60)),
         ))
 
@@ -197,7 +199,7 @@ for product in products:
             product_id=product.id,
             competitor_name=comp,
             price=round(product.price * random.uniform(0.75, 1.30), 2),
-            marketplace=random.choice(MARKETPLACES),
+            marketplace=product.marketplace,  # Use product's marketplace
         ))
 
 db.commit()

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import Sidebar from "@/components/Sidebar";
+import AiChatPanel from "@/components/AiChatPanel";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -28,7 +29,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 p-8 overflow-y-auto">{children}</main>
+      <main className="flex-1 p-8 overflow-y-auto min-w-0">{children}</main>
+      <AiChatPanel />
     </div>
   );
 }
