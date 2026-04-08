@@ -166,6 +166,87 @@ def bundled_items(
     return result
 
 
+@router.get("/analytics/bundle-analytics")
+def bundle_analytics(
+    marketplace: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Full bundle analytics:
+    - summary KPIs
+    - all bundle pairs with count + combined revenue
+    - top pairs for chart
+    """
+    from collections import defaultdict
+
+    q = db.query(models.SalesRecord).filter(models.SalesRecord.bundled_with != "")
+    if marketplace and marketplace != "all":
+        q = q.filter(models.SalesRecord.marketplace == marketplace)
+    records = q.all()
+
+    # Pair → {count, revenue, qty}
+    pair_data: dict = defaultdict(lambda: {"count": 0, "revenue": 0.0, "qty": 0})
+
+    for r in records:
+        for bid in r.bundled_with.split(","):
+            bid = bid.strip()
+            if not bid:
+                continue
+            pair = tuple(sorted([str(r.product_id), bid]))
+            pair_data[pair]["count"] += 1
+            pair_data[pair]["revenue"] += r.revenue
+            pair_data[pair]["qty"] += r.quantity
+
+    # Resolve names
+    pairs = []
+    for (a, b), d in pair_data.items():
+        pa = db.get(models.Product, int(a))
+        pb = db.get(models.Product, int(b))
+        pairs.append({
+            "product_a": pa.name if pa else a,
+            "product_b": pb.name if pb else b,
+            "product_a_id": int(a),
+            "product_b_id": int(b),
+            "count": d["count"],
+            "revenue": round(d["revenue"], 2),
+            "avg_order_qty": round(d["qty"] / d["count"], 1) if d["count"] else 0,
+        })
+
+    pairs.sort(key=lambda x: x["count"], reverse=True)
+
+    total_bundles = sum(p["count"] for p in pairs)
+    total_bundle_revenue = round(sum(p["revenue"] for p in pairs), 2)
+    most_common = pairs[0] if pairs else None
+    avg_bundle_size = round(
+        sum(p["avg_order_qty"] for p in pairs) / len(pairs), 1
+    ) if pairs else 0
+
+    return {
+        "summary": {
+            "total_bundle_sales": total_bundles,
+            "total_bundle_revenue": total_bundle_revenue,
+            "unique_pairs": len(pairs),
+            "avg_bundle_qty": avg_bundle_size,
+            "most_common_pair": (
+                f"{most_common['product_a']} + {most_common['product_b']}" if most_common else "—"
+            ),
+            "most_common_count": most_common["count"] if most_common else 0,
+        },
+        "pairs": pairs,
+        "chart_data": [
+            {
+                "name": f"{p['product_a'][:18]}… + {p['product_b'][:18]}…"
+                        if len(p["product_a"]) + len(p["product_b"]) > 36
+                        else f"{p['product_a']} + {p['product_b']}",
+                "count": p["count"],
+                "revenue": p["revenue"],
+            }
+            for p in pairs[:10]
+        ],
+    }
+
+
 @router.get("/analytics/competitor-pricing")
 def competitor_pricing(
     marketplace: Optional[str] = Query(None),
@@ -189,5 +270,78 @@ def competitor_pricing(
             "competitor": r.competitor_name,
             "competitor_price": r.price,
             "diff": round(r.product.price - r.price, 2),
+            "marketplace": r.marketplace,
         })
+    return result
+
+
+@router.get("/analytics/price-trends")
+def price_trends(
+    marketplace: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Daily average: our price vs average competitor price.
+    Groups CompetitorPrice rows by recorded_at date.
+    """
+    q = db.query(models.CompetitorPrice).join(models.Product)
+    if marketplace and marketplace != "all":
+        q = q.filter(models.CompetitorPrice.marketplace == marketplace)
+    rows = q.order_by(models.CompetitorPrice.recorded_at).all()
+
+    # Bucket by date string
+    from collections import defaultdict
+    by_date: dict = defaultdict(lambda: {"our_prices": [], "comp_prices": []})
+    for r in rows:
+        day = str(r.recorded_at.date()) if hasattr(r.recorded_at, "date") else str(r.recorded_at)[:10]
+        by_date[day]["our_prices"].append(r.product.price)
+        by_date[day]["comp_prices"].append(r.price)
+
+    result = []
+    for day in sorted(by_date.keys()):
+        d = by_date[day]
+        our_avg = round(sum(d["our_prices"]) / len(d["our_prices"]), 2) if d["our_prices"] else 0
+        comp_avg = round(sum(d["comp_prices"]) / len(d["comp_prices"]), 2) if d["comp_prices"] else 0
+        result.append({"date": day, "our_price": our_avg, "competitor_price": comp_avg})
+    return result
+
+
+@router.get("/analytics/competitor-breakdown")
+def competitor_breakdown(
+    marketplace: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Per-competitor summary: avg price, number of products tracked,
+    how many products they undercut us on.
+    """
+    q = db.query(models.CompetitorPrice).join(models.Product)
+    if marketplace and marketplace != "all":
+        q = q.filter(models.CompetitorPrice.marketplace == marketplace)
+    rows = q.all()
+
+    from collections import defaultdict
+    buckets: dict = defaultdict(lambda: {"prices": [], "our_prices": [], "products": set()})
+    for r in rows:
+        b = buckets[r.competitor_name]
+        b["prices"].append(r.price)
+        b["our_prices"].append(r.product.price)
+        b["products"].add(r.product_id)
+
+    result = []
+    for name, b in sorted(buckets.items()):
+        avg_comp = round(sum(b["prices"]) / len(b["prices"]), 2)
+        avg_our = round(sum(b["our_prices"]) / len(b["our_prices"]), 2)
+        cheaper_count = sum(1 for cp, op in zip(b["prices"], b["our_prices"]) if cp < op)
+        result.append({
+            "competitor": name,
+            "avg_price": avg_comp,
+            "avg_our_price": avg_our,
+            "products_tracked": len(b["products"]),
+            "undercuts_us": cheaper_count,
+            "avg_diff": round(avg_our - avg_comp, 2),
+        })
+    result.sort(key=lambda x: x["avg_diff"], reverse=True)
     return result

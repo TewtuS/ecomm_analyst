@@ -144,3 +144,7 @@ class DashboardSummary(BaseModel):
     positive_comments: int
     negative_comments: int
     neutral_comments: int
+    # Period-over-period trend percentages (positive = growth)
+    revenue_trend: Optional[float] = None
+    orders_trend: Optional[float] = None
+    ctr_trend: Optional[float] = None

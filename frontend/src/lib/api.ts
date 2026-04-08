@@ -47,6 +47,7 @@ export const authApi = {
 
 export const dashboardApi = {
   summary: () => api.get("/api/dashboard/summary"),
+  kpiDetail: (kpiType: string) => api.get(`/api/dashboard/kpi-detail/${kpiType}`),
 };
 
 export const productsApi = {
@@ -58,10 +59,15 @@ export const salesApi = {
   topProducts: (limit = 5, marketplace?: string) => api.get("/api/sales/analytics/top-products", { params: { limit, marketplace } }),
   mostReturned: (limit = 5, marketplace?: string) => api.get("/api/sales/analytics/most-returned", { params: { limit, marketplace } }),
   bundledItems: (limit = 5, marketplace?: string) => api.get("/api/sales/analytics/bundled-items", { params: { limit, marketplace } }),
+  bundleAnalytics: (marketplace?: string) => api.get("/api/sales/analytics/bundle-analytics", { params: { marketplace } }),
   competitorPricing: (productId?: number, marketplace?: string) =>
     api.get("/api/sales/analytics/competitor-pricing", {
       params: { ...(productId ? { product_id: productId } : {}), marketplace },
     }),
+  priceTrends: (marketplace?: string) =>
+    api.get("/api/sales/analytics/price-trends", { params: { marketplace } }),
+  competitorBreakdown: (marketplace?: string) =>
+    api.get("/api/sales/analytics/competitor-breakdown", { params: { marketplace } }),
 };
 
 export const engagementApi = {

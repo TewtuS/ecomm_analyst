@@ -10,17 +10,21 @@ import {
   Settings,
   ShoppingCart,
   Users,
+  DollarSign,
+  Package,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { clsx } from "clsx";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/dashboard/sales", label: "Sales Analytics", icon: ShoppingCart },
-  { href: "/dashboard/engagement", label: "Engagement", icon: Users },
-  { href: "/dashboard/comments", label: "Comments", icon: MessageSquare },
-  { href: "/dashboard/insights", label: "AI Insights", icon: Bot },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard",          label: "Dashboard",        icon: Home },
+  { href: "/dashboard/sales",    label: "Sales Analytics",  icon: ShoppingCart },
+  { href: "/dashboard/pricing",  label: "Pricing",          icon: DollarSign },
+  { href: "/dashboard/bundle",   label: "Bundle Analytics", icon: Package },
+  { href: "/dashboard/engagement", label: "Engagement",     icon: Users },
+  { href: "/dashboard/comments", label: "Comments",         icon: MessageSquare },
+  { href: "/dashboard/insights", label: "AI Insights",      icon: Bot },
+  { href: "/dashboard/settings", label: "Settings",         icon: Settings },
 ];
 
 export default function Sidebar() {
