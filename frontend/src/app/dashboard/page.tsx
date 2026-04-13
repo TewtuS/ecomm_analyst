@@ -244,26 +244,67 @@ export default function DashboardPage() {
           <div className="card mt-6">
             <h2 className="text-base font-semibold text-slate-700 mb-1">Revenue Growth (WoW / MoM)</h2>
             <p className="text-xs text-slate-400 mb-4">Week-over-Week and Month-over-Month comparison</p>
-            <div className="grid grid-cols-2 gap-6">
-              {[
-                { label: "This Week", current: charts.revenue_growth.wow_current, previous: charts.revenue_growth.wow_previous, pct: charts.revenue_growth.wow_pct, period: "vs last week" },
-                { label: "This Month", current: charts.revenue_growth.mom_current, previous: charts.revenue_growth.mom_previous, pct: charts.revenue_growth.mom_pct, period: "vs last month" },
-              ].map((g, i) => (
-                <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <p className="text-xs text-slate-500 font-medium mb-1">{g.label}</p>
-                  <p className="text-2xl font-bold text-slate-800">${g.current.toLocaleString()}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    {g.pct !== null && g.pct >= 0
-                      ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
-                      : <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
-                    <span className={`text-xs font-semibold ${g.pct !== null && g.pct >= 0 ? "text-emerald-500" : "text-red-400"}`}>
-                      {g.pct !== null ? `${g.pct > 0 ? "+" : ""}${g.pct}%` : "N/A"}
-                    </span>
-                    <span className="text-xs text-slate-400">{g.period}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Stat cards */}
+              <div className="flex flex-col gap-4">
+                {[
+                  { label: "This Week", current: charts.revenue_growth.wow_current, previous: charts.revenue_growth.wow_previous, pct: charts.revenue_growth.wow_pct, period: "vs last week" },
+                  { label: "This Month", current: charts.revenue_growth.mom_current, previous: charts.revenue_growth.mom_previous, pct: charts.revenue_growth.mom_pct, period: "vs last month" },
+                ].map((g, i) => (
+                  <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    <p className="text-xs text-slate-500 font-medium mb-1">{g.label}</p>
+                    <p className="text-2xl font-bold text-slate-800">${g.current.toLocaleString()}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      {g.pct !== null && g.pct >= 0
+                        ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                        : <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
+                      <span className={`text-xs font-semibold ${g.pct !== null && g.pct >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                        {g.pct !== null ? `${g.pct > 0 ? "+" : ""}${g.pct}%` : "N/A"}
+                      </span>
+                      <span className="text-xs text-slate-400">{g.period}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Previous: ${g.previous.toLocaleString()}</p>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">Previous: ${g.previous.toLocaleString()}</p>
-                </div>
-              ))}
+                ))}
+              </div>
+              {/* Line chart — last 30 days revenue trend */}
+              <div className="lg:col-span-2">
+                <p className="text-xs text-slate-400 mb-2">Daily Revenue – Last 30 Days</p>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={charts.revenue_trend.slice(-30)} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="growthGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      tickFormatter={(v) => v.slice(5)}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#94a3b8" }}
+                      tickFormatter={(v) => `$${v}`}
+                      tickLine={false}
+                      axisLine={false}
+                      width={55}
+                    />
+                    <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#10b981"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 4, strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
