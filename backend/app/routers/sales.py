@@ -307,6 +307,102 @@ def price_trends(
     return result
 
 
+@router.get("/analytics/product-pricing/{product_id}")
+def product_pricing_detail(
+    product_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Per-product pricing detail:
+    - price_index: our_price / avg_market_price * 100
+    - price_diff_pct: % we are above/below market average
+    - price_rank: cheapest / median / most expensive label
+    - pct_above / pct_below: % of competitor records where we are above/below
+    - competitors: list of competitor cards {name, image_url, price, diff, diff_pct}
+    """
+    product = db.get(models.Product, product_id)
+    if not product:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Product not found")
+
+    rows = (
+        db.query(models.CompetitorPrice)
+        .filter(models.CompetitorPrice.product_id == product_id)
+        .join(models.Product)
+        .all()
+    )
+
+    comp_prices = [r.price for r in rows]
+    our_price = product.price
+
+    if not comp_prices:
+        return {
+            "product_id": product_id,
+            "product_name": product.name,
+            "our_price": our_price,
+            "price_index": None,
+            "price_diff_pct": None,
+            "price_rank": "N/A",
+            "pct_above": 0,
+            "pct_below": 0,
+            "competitors": [],
+        }
+
+    avg_market = sum(comp_prices) / len(comp_prices)
+    price_index = round(our_price / avg_market * 100, 1) if avg_market else None
+    price_diff_pct = round((our_price - avg_market) / avg_market * 100, 1) if avg_market else None
+
+    all_prices = sorted(comp_prices + [our_price])
+    rank_pos = all_prices.index(our_price)
+    n = len(all_prices)
+    if rank_pos == 0:
+        price_rank = "Cheapest in market"
+    elif rank_pos == n - 1:
+        price_rank = "Most expensive in market"
+    else:
+        pct_rank = rank_pos / (n - 1) * 100
+        if pct_rank <= 33:
+            price_rank = "Among the cheapest"
+        elif pct_rank <= 66:
+            price_rank = "Median priced"
+        else:
+            price_rank = "Among the most expensive"
+
+    above = sum(1 for p in comp_prices if our_price > p)
+    below = sum(1 for p in comp_prices if our_price < p)
+    total = len(comp_prices)
+    pct_above = round(above / total * 100, 1) if total else 0
+    pct_below = round(below / total * 100, 1) if total else 0
+
+    competitors = []
+    for r in rows:
+        diff = round(our_price - r.price, 2)
+        diff_pct = round((our_price - r.price) / r.price * 100, 1) if r.price else 0
+        competitors.append({
+            "name": r.competitor_name,
+            "price": r.price,
+            "diff": diff,
+            "diff_pct": diff_pct,
+            "marketplace": r.marketplace,
+        })
+    competitors.sort(key=lambda x: x["price"])
+
+    return {
+        "product_id": product_id,
+        "product_name": product.name,
+        "product_image": product.image_url,
+        "our_price": our_price,
+        "avg_market_price": round(avg_market, 2),
+        "price_index": price_index,
+        "price_diff_pct": price_diff_pct,
+        "price_rank": price_rank,
+        "pct_above": pct_above,
+        "pct_below": pct_below,
+        "competitors": competitors,
+    }
+
+
 @router.get("/analytics/competitor-breakdown")
 def competitor_breakdown(
     marketplace: Optional[str] = Query(None),

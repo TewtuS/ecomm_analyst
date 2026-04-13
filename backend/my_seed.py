@@ -8,6 +8,7 @@ WARNING: This WIPES all existing data and replaces it with the CSV data.
 """
 import csv
 import os
+import re
 import sys
 from datetime import datetime
 
@@ -19,6 +20,23 @@ from app.security import hash_password
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data_200")
+IMAGE_DIR = os.path.join(DATA_DIR, "image")
+
+
+# ── Helpers ── image filename slug ─────────────────────────────────────────────
+def name_to_image_url(product_name: str) -> str:
+    """
+    Convert a product name to its image URL served via /images/<slug>.jpg
+    e.g. "A'PIEU Madecassoside Toner" → "/images/apieu_madecassoside_toner.jpg"
+    """
+    slug = product_name.lower()
+    slug = slug.replace("'", "").replace("'", "").replace("é", "e").replace("ô", "o").replace("ü", "u")
+    slug = re.sub(r"[^a-z0-9]+", "_", slug)
+    slug = slug.strip("_")
+    filepath = os.path.join(IMAGE_DIR, f"{slug}.jpg")
+    if os.path.isfile(filepath):
+        return f"/images/{slug}.jpg"
+    return ""
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -84,12 +102,16 @@ product_id_map: dict[int, int] = {}
 
 products_to_add = []
 for row in product_rows:
+    name = row["name"].strip()
+    # Use CSV image_url if provided, otherwise derive from product name
+    csv_img = row["image_url"].strip() if row["image_url"].strip() else ""
+    image_url = csv_img if csv_img else name_to_image_url(name)
     products_to_add.append(Product(
-        name=row["name"].strip(),
+        name=name,
         category=row["category"].strip(),
         price=float(row["price"]),
         stock=int(row["stock"]),
-        image_url=row["image_url"].strip() if row["image_url"].strip() else "",
+        image_url=image_url,
         marketplace=row["marketplace"].strip(),
     ))
 

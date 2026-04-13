@@ -372,3 +372,161 @@ def kpi_detail(
         }
 
     raise HTTPException(status_code=404, detail=f"Unknown KPI type: {kpi_type}")
+
+
+@router.get("/sales-by-country")
+def sales_by_country(
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Returns sales aggregated by country.
+    Since the dataset uses marketplaces (not countries), we map each marketplace
+    to its primary country and aggregate orders + revenue.
+    """
+    # Marketplace → ISO country code + display name
+    MP_COUNTRY = {
+        "Taobao": ("CHN", "China"),
+        "JD": ("CHN", "China"),
+        "Shopee": ("SGP", "Singapore"),
+        "Temu": ("USA", "United States"),
+        "Facebook Marketplace": ("USA", "United States"),
+        "eBay": ("USA", "United States"),
+        "Amazon": ("USA", "United States"),
+        "Pinduoduo": ("CHN", "China"),
+    }
+
+    rows = (
+        db.query(
+            models.SalesRecord.marketplace,
+            func.count(models.SalesRecord.id).label("orders"),
+            func.sum(models.SalesRecord.revenue).label("revenue"),
+        )
+        .group_by(models.SalesRecord.marketplace)
+        .all()
+    )
+
+    # Aggregate by country
+    country_map: dict = {}
+    for r in rows:
+        iso, name = MP_COUNTRY.get(r.marketplace, ("OTH", r.marketplace))
+        if iso not in country_map:
+            country_map[iso] = {"iso": iso, "name": name, "orders": 0, "revenue": 0.0}
+        country_map[iso]["orders"] += r.orders
+        country_map[iso]["revenue"] += r.revenue or 0
+
+    result = sorted(country_map.values(), key=lambda x: x["revenue"], reverse=True)
+    for c in result:
+        c["revenue"] = round(c["revenue"], 2)
+    return result
+
+
+@router.get("/charts/overview")
+def charts_overview(
+    db: Session = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    """
+    Returns data for all new dashboard chart sections:
+    - total_revenue_trend: daily revenue (last 60 days) for line chart
+    - revenue_growth: WoW and MoM comparison
+    - aov_trend: daily average order value
+    - revenue_by_marketplace: per-marketplace revenue for doughnut/bar
+    - top_products: top 6 products by revenue for horizontal bar
+    """
+    from datetime import datetime, timedelta
+
+    now = datetime.utcnow()
+    since_60 = now - timedelta(days=60)
+    since_30 = now - timedelta(days=30)
+    since_7 = now - timedelta(days=7)
+    prev_week_start = since_7 - timedelta(days=7)
+    prev_month_start = since_30 - timedelta(days=30)
+
+    # ── Revenue + AOV trend (last 60 days) ────────────────────────────────
+    trend_rows = (
+        db.query(
+            func.date(models.SalesRecord.sale_date).label("day"),
+            func.sum(models.SalesRecord.revenue).label("revenue"),
+            func.count(models.SalesRecord.id).label("orders"),
+        )
+        .filter(models.SalesRecord.sale_date >= since_60)
+        .group_by(func.date(models.SalesRecord.sale_date))
+        .order_by(func.date(models.SalesRecord.sale_date))
+        .all()
+    )
+    revenue_trend = [
+        {
+            "day": str(r.day),
+            "revenue": round(r.revenue, 2),
+            "aov": round(r.revenue / r.orders, 2) if r.orders else 0,
+        }
+        for r in trend_rows
+    ]
+
+    # ── Revenue Growth WoW ─────────────────────────────────────────────────
+    cur_week_rev = (
+        db.query(func.sum(models.SalesRecord.revenue))
+        .filter(models.SalesRecord.sale_date >= since_7)
+        .scalar() or 0
+    )
+    prev_week_rev = (
+        db.query(func.sum(models.SalesRecord.revenue))
+        .filter(models.SalesRecord.sale_date >= prev_week_start, models.SalesRecord.sale_date < since_7)
+        .scalar() or 0
+    )
+    cur_month_rev = (
+        db.query(func.sum(models.SalesRecord.revenue))
+        .filter(models.SalesRecord.sale_date >= since_30)
+        .scalar() or 0
+    )
+    prev_month_rev = (
+        db.query(func.sum(models.SalesRecord.revenue))
+        .filter(models.SalesRecord.sale_date >= prev_month_start, models.SalesRecord.sale_date < since_30)
+        .scalar() or 0
+    )
+
+    # ── Revenue by Marketplace ─────────────────────────────────────────────
+    mp_rows = (
+        db.query(
+            models.SalesRecord.marketplace,
+            func.sum(models.SalesRecord.revenue).label("revenue"),
+            func.count(models.SalesRecord.id).label("orders"),
+        )
+        .group_by(models.SalesRecord.marketplace)
+        .order_by(func.sum(models.SalesRecord.revenue).desc())
+        .all()
+    )
+
+    # ── Top Products ───────────────────────────────────────────────────────
+    top_products = (
+        db.query(
+            models.Product.name,
+            func.sum(models.SalesRecord.revenue).label("revenue"),
+        )
+        .join(models.SalesRecord, models.SalesRecord.product_id == models.Product.id)
+        .group_by(models.Product.id)
+        .order_by(func.sum(models.SalesRecord.revenue).desc())
+        .limit(6)
+        .all()
+    )
+
+    return {
+        "revenue_trend": revenue_trend,
+        "revenue_growth": {
+            "wow_current": round(cur_week_rev, 2),
+            "wow_previous": round(prev_week_rev, 2),
+            "wow_pct": _pct_change(cur_week_rev, prev_week_rev),
+            "mom_current": round(cur_month_rev, 2),
+            "mom_previous": round(prev_month_rev, 2),
+            "mom_pct": _pct_change(cur_month_rev, prev_month_rev),
+        },
+        "revenue_by_marketplace": [
+            {"name": r.marketplace, "revenue": round(r.revenue, 2), "orders": r.orders}
+            for r in mp_rows
+        ],
+        "top_products": [
+            {"name": p.name, "revenue": round(p.revenue, 2)}
+            for p in top_products
+        ],
+    }

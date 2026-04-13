@@ -5,16 +5,18 @@
  */
 import { useEffect, useState, useCallback } from "react";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
   DollarSign, ShoppingBag, RotateCcw, MousePointerClick,
-  Eye, ShoppingCart, ThumbsUp, ThumbsDown, X, Star,
+  Eye, ShoppingCart, ThumbsUp, ThumbsDown, X, Star, TrendingUp, TrendingDown,
 } from "lucide-react";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
-import { dashboardApi, salesApi, engagementApi, commentsApi } from "@/lib/api";
+import { dashboardApi, engagementApi, commentsApi } from "@/lib/api";
+import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
+import { MapPin } from "lucide-react";
 
 const COLORS = ["#4f6ef7", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
@@ -37,11 +39,24 @@ function formatValue(kpi: string, val: number): string {
   return val.toLocaleString();
 }
 
+type CountryRow = { iso: string; name: string; orders: number; revenue: number };
+
+type ChartOverview = {
+  revenue_trend: { day: string; revenue: number; aov: number }[];
+  revenue_growth: {
+    wow_current: number; wow_previous: number; wow_pct: number | null;
+    mom_current: number; mom_previous: number; mom_pct: number | null;
+  };
+  revenue_by_marketplace: { name: string; revenue: number; orders: number }[];
+  top_products: { name: string; revenue: number }[];
+};
+
 export default function DashboardPage() {
   const [summary, setSummary] = useState<Record<string, number>>({});
-  const [salesTrend, setSalesTrend] = useState([]);
   const [sentiment, setSentiment] = useState([]);
   const [engagementTrend, setEngagementTrend] = useState([]);
+  const [charts, setCharts] = useState<ChartOverview | null>(null);
+  const [countries, setCountries] = useState<CountryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Drill-down state
@@ -52,14 +67,16 @@ export default function DashboardPage() {
   useEffect(() => {
     Promise.all([
       dashboardApi.summary(),
-      salesApi.trends(30),
       commentsApi.sentimentSummary(),
       engagementApi.trends(14),
-    ]).then(([s, st, sent, et]) => {
+      dashboardApi.chartsOverview(),
+      dashboardApi.salesByCountry(),
+    ]).then(([s, sent, et, co, sc]) => {
       setSummary(s.data);
-      setSalesTrend(st.data.slice(-14));
       setSentiment(sent.data);
       setEngagementTrend(et.data.slice(-14));
+      setCharts(co.data);
+      setCountries(sc.data);
       setLoading(false);
     });
   }, []);
@@ -199,30 +216,203 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ── New Chart Sections ── */}
+      {charts && (
+        <>
+          {/* Total Revenue Line Chart */}
+          <div className="card mt-6">
+            <h2 className="text-base font-semibold text-slate-700 mb-1">Total Revenue</h2>
+            <p className="text-xs text-slate-400 mb-4">Line Chart – Last 60 Days</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={charts.revenue_trend}>
+                <defs>
+                  <linearGradient id="revLine" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#4f6ef7" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#4f6ef7" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                <Line type="monotone" dataKey="revenue" stroke="#4f6ef7" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Revenue Growth WoW / MoM */}
+          <div className="card mt-6">
+            <h2 className="text-base font-semibold text-slate-700 mb-1">Revenue Growth (WoW / MoM)</h2>
+            <p className="text-xs text-slate-400 mb-4">Week-over-Week and Month-over-Month comparison</p>
+            <div className="grid grid-cols-2 gap-6">
+              {[
+                { label: "This Week", current: charts.revenue_growth.wow_current, previous: charts.revenue_growth.wow_previous, pct: charts.revenue_growth.wow_pct, period: "vs last week" },
+                { label: "This Month", current: charts.revenue_growth.mom_current, previous: charts.revenue_growth.mom_previous, pct: charts.revenue_growth.mom_pct, period: "vs last month" },
+              ].map((g, i) => (
+                <div key={i} className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-xs text-slate-500 font-medium mb-1">{g.label}</p>
+                  <p className="text-2xl font-bold text-slate-800">${g.current.toLocaleString()}</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    {g.pct !== null && g.pct >= 0
+                      ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+                      : <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
+                    <span className={`text-xs font-semibold ${g.pct !== null && g.pct >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                      {g.pct !== null ? `${g.pct > 0 ? "+" : ""}${g.pct}%` : "N/A"}
+                    </span>
+                    <span className="text-xs text-slate-400">{g.period}</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">Previous: ${g.previous.toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AOV Line Chart */}
+          <div className="card mt-6">
+            <h2 className="text-base font-semibold text-slate-700 mb-1">Average Order Value (AOV)</h2>
+            <p className="text-xs text-slate-400 mb-4">Daily AOV – Last 60 Days</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={charts.revenue_trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                <Tooltip formatter={(v: number) => [`$${v}`, "AOV"]} />
+                <Line type="monotone" dataKey="aov" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Revenue by Marketplace (Doughnut + Bar) */}
+          <div className="card mt-6">
+            <h2 className="text-base font-semibold text-slate-700 mb-1">Revenue by Marketplace</h2>
+            <p className="text-xs text-slate-400 mb-4">Shopee, Temu, Taobao, JD, Facebook Marketplace</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={charts.revenue_by_marketplace}
+                    dataKey="revenue"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={90}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {charts.revenue_by_marketplace.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                </PieChart>
+              </ResponsiveContainer>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={charts.revenue_by_marketplace} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={140} />
+                  <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                  {charts.revenue_by_marketplace.map((_, i) => null)}
+                  <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
+                    {charts.revenue_by_marketplace.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Top Products by Revenue */}
+          <div className="card mt-6 mb-6">
+            <h2 className="text-base font-semibold text-slate-700 mb-1">Top Products by Revenue</h2>
+            <p className="text-xs text-slate-400 mb-4">Horizontal Bar Chart</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={charts.top_products} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${v}`} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={160} />
+                <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                <Bar dataKey="revenue" fill="#4f6ef7" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+
+      {/* ── Sales by Countries ── */}
+      {countries.length > 0 && (
+        <div className="card mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-brand-500" />
+                Sales by Countries
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">Orders and revenue by market region</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Map */}
+            <div className="lg:col-span-2 rounded-xl overflow-hidden bg-slate-50 border border-slate-100" style={{ height: 280 }}>
+              <ComposableMap projectionConfig={{ scale: 147 }} style={{ width: "100%", height: "100%" }}>
+                <ZoomableGroup>
+                  <Geographies geography="https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json">
+                    {({ geographies }) =>
+                      geographies.map((geo) => {
+                        const iso3 = geo.properties?.["Alpha-3"] || geo.id;
+                        const match = countries.find((c) => c.iso === iso3);
+                        const maxRev = countries[0]?.revenue || 1;
+                        const intensity = match ? 0.2 + (match.revenue / maxRev) * 0.8 : 0;
+                        return (
+                          <Geography
+                            key={geo.rsmKey}
+                            geography={geo}
+                            fill={match ? `rgba(79,110,247,${intensity})` : "#e2e8f0"}
+                            stroke="#fff"
+                            strokeWidth={0.5}
+                            style={{ default: { outline: "none" }, hover: { fill: "#4f6ef7", outline: "none" }, pressed: { outline: "none" } }}
+                          />
+                        );
+                      })
+                    }
+                  </Geographies>
+                </ZoomableGroup>
+              </ComposableMap>
+            </div>
+            {/* Country list */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Top Markets</p>
+              {countries.slice(0, 6).map((c, i) => {
+                const maxOrders = countries[0]?.orders || 1;
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-300 w-4">{i + 1}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-sm font-medium text-slate-700">{c.name}</span>
+                        <span className="text-xs font-semibold text-slate-500">{c.orders.toLocaleString()} orders</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-brand-500"
+                          style={{ width: `${Math.round((c.orders / maxOrders) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales Trend */}
-        <div className="card lg:col-span-2">
-          <h2 className="text-base font-semibold text-slate-700 mb-4">Revenue – Last 14 Days</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={salesTrend}>
-              <defs>
-                <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#4f6ef7" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#4f6ef7" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => [`$${v}`, "Revenue"]} />
-              <Area type="monotone" dataKey="revenue" stroke="#4f6ef7" fill="url(#colorRev)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
         {/* Sentiment Pie */}
-        <div className="card">
+        <div className="card lg:col-span-1">
           <h2 className="text-base font-semibold text-slate-700 mb-4">Sentiment Breakdown</h2>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
@@ -253,22 +443,22 @@ export default function DashboardPage() {
             </PieChart>
           </ResponsiveContainer>
         </div>
-      </div>
 
-      {/* Engagement Trend */}
-      <div className="card mt-6">
-        <h2 className="text-base font-semibold text-slate-700 mb-4">Engagement – Last 14 Days</h2>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={engagementTrend}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="visits" name="Page Visits" fill="#4f6ef7" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="cart_adds" name="Cart Adds" fill="#10b981" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        {/* Engagement Trend */}
+        <div className="card lg:col-span-2">
+          <h2 className="text-base font-semibold text-slate-700 mb-4">Engagement – Last 14 Days</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={engagementTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="visits" name="Page Visits" fill="#4f6ef7" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="cart_adds" name="Cart Adds" fill="#10b981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

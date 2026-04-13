@@ -7,7 +7,7 @@ import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { DollarSign, RotateCcw, Package, Tag } from "lucide-react";
+import { DollarSign, RotateCcw, Package, Tag, TrendingUp } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import KpiCard from "@/components/KpiCard";
 import { salesApi } from "@/lib/api";
@@ -29,8 +29,6 @@ export default function SalesPage() {
   const [trends, setTrends] = useState([]);
   const [topProducts, setTopProducts] = useState<{ name: string; total_revenue: number; total_units: number }[]>([]);
   const [returned, setReturned] = useState<{ name: string; return_count: number }[]>([]);
-  const [bundled, setBundled] = useState<{ product_a: string; product_b: string; count: number }[]>([]);
-  const [competitors, setCompetitors] = useState<{ product_name: string; our_price: number; competitor: string; competitor_price: number; diff: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = (marketplace: string) => {
@@ -39,14 +37,10 @@ export default function SalesPage() {
       salesApi.trends(30, marketplace === "all" ? undefined : marketplace),
       salesApi.topProducts(6, marketplace === "all" ? undefined : marketplace),
       salesApi.mostReturned(5, marketplace === "all" ? undefined : marketplace),
-      salesApi.bundledItems(5, marketplace === "all" ? undefined : marketplace),
-      salesApi.competitorPricing(undefined, marketplace === "all" ? undefined : marketplace),
-    ]).then(([t, tp, r, b, cp]) => {
+    ]).then(([t, tp, r]) => {
       setTrends(t.data);
       setTopProducts(tp.data);
       setReturned(r.data);
-      setBundled(b.data);
-      setCompetitors(cp.data.slice(0, 10));
     }).finally(() => setLoading(false));
   };
 
@@ -156,63 +150,7 @@ export default function SalesPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Bundled Items */}
-            <div className="card">
-              <h2 className="text-base font-semibold text-slate-700 mb-4">Frequently Bundled Items</h2>
-              <div className="space-y-3">
-                {bundled.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-8">No bundle data</p>
-                ) : (
-                  bundled.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5">
-                      <span className="text-sm text-slate-700">
-                        <span className="font-medium">{item.product_a}</span>
-                        <span className="text-slate-400 mx-2">+</span>
-                        <span className="font-medium">{item.product_b}</span>
-                      </span>
-                      <span className="text-xs bg-brand-50 text-brand-600 font-semibold px-2 py-0.5 rounded-lg">
-                        {item.count}x
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
 
-            {/* Competitor Pricing */}
-            <div className="card">
-              <h2 className="text-base font-semibold text-slate-700 mb-4">Competitor Pricing Comparison</h2>
-              <div className="overflow-x-auto">
-                {competitors.length === 0 ? (
-                  <p className="text-sm text-slate-400 text-center py-8">No competitor data</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-xs text-slate-400 uppercase border-b border-slate-100">
-                        <th className="text-left py-2 pr-3">Product</th>
-                        <th className="text-right py-2 pr-3">Our Price</th>
-                        <th className="text-right py-2 pr-3">Competitor</th>
-                        <th className="text-right py-2">Diff</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {competitors.map((c, i) => (
-                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                          <td className="py-2 pr-3 font-medium text-slate-700 truncate max-w-[100px]">{c.product_name}</td>
-                          <td className="py-2 pr-3 text-right">${c.our_price}</td>
-                          <td className="py-2 pr-3 text-right text-slate-500">${c.competitor_price}</td>
-                          <td className={`py-2 text-right font-semibold ${c.diff > 0 ? "text-red-500" : "text-emerald-500"}`}>
-                            {c.diff > 0 ? "+" : ""}{c.diff}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
         </>
       )}
     </div>

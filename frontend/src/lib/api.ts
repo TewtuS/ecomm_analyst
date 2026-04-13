@@ -48,6 +48,8 @@ export const authApi = {
 export const dashboardApi = {
   summary: () => api.get("/api/dashboard/summary"),
   kpiDetail: (kpiType: string) => api.get(`/api/dashboard/kpi-detail/${kpiType}`),
+  chartsOverview: () => api.get("/api/dashboard/charts/overview"),
+  salesByCountry: () => api.get("/api/dashboard/sales-by-country"),
 };
 
 export const productsApi = {
@@ -64,6 +66,8 @@ export const salesApi = {
     api.get("/api/sales/analytics/competitor-pricing", {
       params: { ...(productId ? { product_id: productId } : {}), marketplace },
     }),
+  productPricingDetail: (productId: number) =>
+    api.get(`/api/sales/analytics/product-pricing/${productId}`),
   priceTrends: (marketplace?: string) =>
     api.get("/api/sales/analytics/price-trends", { params: { marketplace } }),
   competitorBreakdown: (marketplace?: string) =>

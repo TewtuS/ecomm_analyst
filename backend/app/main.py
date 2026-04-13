@@ -2,8 +2,10 @@
 FastAPI application entry point.
 Run with:  uvicorn app.main:app --reload --port 8000
 """
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import Base, engine
@@ -35,6 +37,13 @@ app.include_router(sales.router)
 app.include_router(engagement.router)
 app.include_router(comments.router)
 app.include_router(insights.router)
+
+
+
+# ── Static files (product images) ─────────────────────────────────────────────
+_images_dir = os.path.join(os.path.dirname(__file__), "..", "data_200", "image")
+if os.path.isdir(_images_dir):
+    app.mount("/images", StaticFiles(directory=_images_dir), name="images")
 
 
 @app.get("/", tags=["health"])

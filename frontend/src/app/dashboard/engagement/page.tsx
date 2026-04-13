@@ -105,7 +105,7 @@ export default function EngagementPage() {
           {imageViews.map((item, i) => (
             <div key={i} className="text-center">
               <img
-                src={item.image_url || `https://picsum.photos/seed/${i + 10}/200/200`}
+                src={item.image_url ? `http://localhost:8000${item.image_url}` : `https://picsum.photos/seed/${i + 10}/200/200`}
                 alt={item.name}
                 className="w-full aspect-square object-cover rounded-xl mb-2 border border-slate-100"
               />
