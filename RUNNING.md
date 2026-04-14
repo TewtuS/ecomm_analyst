@@ -13,7 +13,7 @@
 Run each line one at a time in Terminal 1:
 
 ```powershell
-cd c:\Users\matth\OneDrive\Documents\GitHub\ecommerce-analytics\backend
+cd backend
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
@@ -34,7 +34,7 @@ uvicorn app.main:app --reload --port 8000
 Run each line one at a time in Terminal 2:
 
 ```powershell
-cd c:\Users\matth\OneDrive\Documents\GitHub\ecommerce-analytics\frontend
+cd frontend
 npm install
 npm run dev
 ```
