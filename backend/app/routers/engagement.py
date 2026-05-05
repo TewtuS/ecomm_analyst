@@ -84,8 +84,16 @@ def engagement_trends(
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    """Daily engagement totals for the last N days."""
-    since = datetime.utcnow() - timedelta(days=days)
+    """Daily engagement totals for the last N calendar days of data in the DB.
+
+    The window ends at the latest engagement row (not necessarily "today"), so
+    seeded or historical datasets still populate charts when they are not current
+    to the server's clock.
+    """
+    anchor = db.query(func.max(models.EngagementMetric.date)).scalar()
+    if anchor is None:
+        return []
+    since = anchor - timedelta(days=days)
     rows = (
         db.query(
             func.date(models.EngagementMetric.date).label("day"),

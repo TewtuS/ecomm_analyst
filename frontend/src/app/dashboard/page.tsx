@@ -112,6 +112,15 @@ export default function DashboardPage() {
     [charts?.revenue_by_marketplace?.length]
   );
 
+  const sentimentTotal = useMemo(
+    () =>
+      sentiment.reduce(
+        (sum: number, row: { count?: number }) => sum + (Number(row.count) || 0),
+        0
+      ),
+    [sentiment]
+  );
+
   const topProductsBarHeight = useMemo(
     () =>
       verticalCategoryBarChartHeight(charts?.top_products?.length ?? 0, {
@@ -504,16 +513,15 @@ export default function DashboardPage() {
         <div className="card lg:col-span-1">
           <h2 className="text-lg font-semibold text-slate-700 mb-4">Sentiment Breakdown</h2>
           <ResponsiveContainer width="100%" height={260}>
-            <PieChart margin={{ top: 0, right: 8, bottom: 8, left: 8 }}>
+            <PieChart margin={{ top: 8, right: 8, bottom: 4, left: 8 }}>
               <Pie
                 data={sentiment}
                 dataKey="count"
                 nameKey="sentiment"
                 cx="50%"
-                cy="44%"
-                outerRadius={78}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                labelLine={false}
+                cy="46%"
+                outerRadius={72}
+                paddingAngle={1}
               >
                 {sentiment.map((entry: { sentiment: string }, i) => (
                   <Cell
@@ -528,11 +536,23 @@ export default function DashboardPage() {
                   />
                 ))}
               </Pie>
-              <Tooltip />
+              <Tooltip
+                formatter={(value: number) => {
+                  const v = Number(value) || 0;
+                  const pct = sentimentTotal ? Math.round((v / sentimentTotal) * 100) : 0;
+                  return `${v.toLocaleString()} (${pct}%)`;
+                }}
+              />
               <Legend
                 layout="horizontal"
                 verticalAlign="bottom"
-                wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }}
+                wrapperStyle={{ fontSize: "12px", paddingTop: "4px" }}
+                formatter={(value, entry) => {
+                  const count = Number((entry.payload as { count?: number })?.count) || 0;
+                  const pct = sentimentTotal ? Math.round((count / sentimentTotal) * 100) : 0;
+                  const label = typeof value === "string" ? value.charAt(0).toUpperCase() + value.slice(1) : String(value);
+                  return `${label} · ${pct}%`;
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
@@ -542,10 +562,10 @@ export default function DashboardPage() {
         <div className="card lg:col-span-2">
           <h2 className="text-lg font-semibold text-slate-700 mb-4">Engagement – Last 14 Days</h2>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={engagementTrend}>
+            <BarChart data={engagementTrend} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="day" tick={{ fontSize: 12 }} tickFormatter={(v) => v.slice(5)} />
-              <YAxis tick={{ fontSize: 12 }} />
+              <XAxis dataKey="day" tick={{ fontSize: 12 }} tickFormatter={(v) => (typeof v === "string" ? v.slice(5) : "")} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
               <Tooltip />
               <Legend />
               <Bar dataKey="visits" name="Page Visits" fill="#4f6ef7" radius={[4, 4, 0, 0]} />
