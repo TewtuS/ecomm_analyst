@@ -121,6 +121,39 @@ export default function DashboardPage() {
     [sentiment]
   );
 
+  const sentimentPieLabel = useCallback(
+    (props: {
+      cx?: number;
+      cy?: number;
+      midAngle?: number;
+      innerRadius?: number;
+      outerRadius?: number;
+      percent?: number;
+    }) => {
+      const { cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 } = props;
+      if (percent < 0.035) return null;
+      const RADIAN = Math.PI / 180;
+      const radius = innerRadius + (outerRadius - innerRadius) * 0.52;
+      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+      return (
+        <text
+          x={x}
+          y={y}
+          fill="white"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={12}
+          fontWeight={600}
+          style={{ textShadow: "0 1px 2px rgba(0,0,0,0.45)" }}
+        >
+          {`${Math.round(percent * 100)}%`}
+        </text>
+      );
+    },
+    []
+  );
+
   const topProductsBarHeight = useMemo(
     () =>
       verticalCategoryBarChartHeight(charts?.top_products?.length ?? 0, {
@@ -522,6 +555,8 @@ export default function DashboardPage() {
                 cy="46%"
                 outerRadius={72}
                 paddingAngle={1}
+                label={sentimentPieLabel}
+                labelLine={false}
               >
                 {sentiment.map((entry: { sentiment: string }, i) => (
                   <Cell
