@@ -100,18 +100,6 @@ export default function DashboardPage() {
     [activeKpi]
   );
 
-  const revenueMktBarHeight = useMemo(
-    () =>
-      verticalCategoryBarChartHeight(charts?.revenue_by_marketplace?.length ?? 0, {
-        min: 200,
-        max: 480,
-        band: 38,
-        gutter: 56,
-        empty: 220,
-      }),
-    [charts?.revenue_by_marketplace?.length]
-  );
-
   const sentimentTotal = useMemo(
     () =>
       sentiment.reduce(
@@ -152,18 +140,6 @@ export default function DashboardPage() {
       );
     },
     []
-  );
-
-  const topProductsBarHeight = useMemo(
-    () =>
-      verticalCategoryBarChartHeight(charts?.top_products?.length ?? 0, {
-        min: 200,
-        max: 520,
-        band: 42,
-        gutter: 60,
-        empty: 220,
-      }),
-    [charts?.top_products?.length]
   );
 
   if (loading) {
@@ -387,81 +363,6 @@ export default function DashboardPage() {
                 <Tooltip formatter={(v: number) => [`$${v}`, "AOV"]} />
                 <Line type="monotone" dataKey="aov" stroke="#8b5cf6" strokeWidth={2} dot={false} />
               </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Revenue by Marketplace (Doughnut + Bar) */}
-          <div className="card mt-6">
-            <h2 className="text-lg font-semibold text-slate-700 mb-1">Revenue by Marketplace</h2>
-            <p className="text-sm text-slate-400 mb-4">Shopee, Temu, Taobao, JD, Facebook Marketplace</p>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart margin={{ top: 0, right: 8, bottom: 8, left: 8 }}>
-                  <Pie
-                    data={charts.revenue_by_marketplace}
-                    dataKey="revenue"
-                    nameKey="name"
-                    cx="50%"
-                    cy="44%"
-                    innerRadius={50}
-                    outerRadius={82}
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {charts.revenue_by_marketplace.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
-                  <Legend
-                    layout="horizontal"
-                    verticalAlign="bottom"
-                    wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <ResponsiveContainer width="100%" height={revenueMktBarHeight}>
-                <BarChart data={charts.revenue_by_marketplace} layout="vertical" margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tick={{ fontSize: 11, fill: "#64748b" }}
-                    width={268}
-                    interval={0}
-                    tickFormatter={(v) => fullYAxisLabel(v)}
-                  />
-                  <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
-                  {charts.revenue_by_marketplace.map((_, i) => null)}
-                  <Bar dataKey="revenue" name="Revenue" radius={[0, 4, 4, 0]}>
-                    {charts.revenue_by_marketplace.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Top Products by Revenue */}
-          <div className="card mt-6 mb-6">
-            <h2 className="text-lg font-semibold text-slate-700 mb-4">Top Products by Revenue</h2>
-            <ResponsiveContainer width="100%" height={topProductsBarHeight}>
-              <BarChart data={charts.top_products} layout="vertical" margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v) => `$${v}`} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fontSize: 11, fill: "#64748b" }}
-                  width={288}
-                  interval={0}
-                  tickFormatter={(v) => fullYAxisLabel(v)}
-                />
-                <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
-                <Bar dataKey="revenue" fill="#4f6ef7" radius={[0, 4, 4, 0]} />
-              </BarChart>
             </ResponsiveContainer>
           </div>
         </>
