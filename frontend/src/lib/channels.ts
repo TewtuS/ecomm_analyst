@@ -50,14 +50,14 @@ export type IntegrationMarketplace = {
 export const INTEGRATION_MARKETPLACES: IntegrationMarketplace[] = [
   { name: "Shopee", emoji: "🛍️", assetSlug: "shopee", status: "connected", color: "text-orange-500 bg-orange-50" },
   { name: "Taobao", emoji: "🏪", assetSlug: "taobao", status: "connected", color: "text-red-500 bg-red-50" },
-  { name: "Temu", emoji: "🎯", assetSlug: "temu", status: "demo", color: "text-blue-500 bg-blue-50" },
+  { name: "Temu", emoji: "🎯", assetSlug: "temu", status: "connected", color: "text-blue-500 bg-blue-50" },
   {
     name: "Facebook Marketplace",
     emoji: "📘",
     assetSlug: "facebook_marketplace",
-    status: "coming_soon",
+    status: "connected",
     color: "text-indigo-500 bg-indigo-50",
   },
-  { name: "JD.com", emoji: "📦", assetSlug: "jd", status: "coming_soon", color: "text-red-600 bg-red-50" },
-  { name: "Lazada", emoji: "🏬", assetSlug: "lazada", status: "coming_soon", color: "text-purple-500 bg-purple-50" },
+  { name: "JD.com", emoji: "📦", assetSlug: "jd", status: "connected", color: "text-red-600 bg-red-50" },
+  { name: "Lazada", emoji: "🏬", assetSlug: "lazada", status: "connected", color: "text-purple-500 bg-purple-50" },
 ];
