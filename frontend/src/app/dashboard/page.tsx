@@ -446,8 +446,7 @@ export default function DashboardPage() {
 
           {/* Top Products by Revenue */}
           <div className="card mt-6 mb-6">
-            <h2 className="text-lg font-semibold text-slate-700 mb-1">Top Products by Revenue</h2>
-            <p className="text-sm text-slate-400 mb-4">Horizontal Bar Chart</p>
+            <h2 className="text-lg font-semibold text-slate-700 mb-4">Top Products by Revenue</h2>
             <ResponsiveContainer width="100%" height={topProductsBarHeight}>
               <BarChart data={charts.top_products} layout="vertical" margin={{ left: 8, right: 8, top: 4, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
