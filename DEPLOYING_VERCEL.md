@@ -111,6 +111,12 @@ The frontend build generates `_redirects` / proxy rules for static export hosts.
 
 ---
 
+## GitHub source
+
+Vercel should deploy from **`main`** on [github.com/TewtuS/ecomm_analyst](https://github.com/TewtuS/ecomm_analyst). Confirm the deployment commit matches the latest on that branch (not an older SHA like `892ba5e`).
+
+---
+
 ## Troubleshooting
 
 | Issue | Fix |
