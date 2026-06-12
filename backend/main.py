@@ -1,8 +1,8 @@
 """
 Vercel Services entrypoint for the FastAPI backend (experimentalServices.backend).
 
-Prepares SQLite on serverless, then re-exports `app` with route-prefix stripping
-so existing `/api/*` routes work when mounted at `/_/backend`.
+Prepares SQLite on serverless, then re-exports `app` (FastAPI instance required by
+Vercel's Python runtime). Route-prefix stripping uses middleware when mounted at /_/backend.
 """
 import os
 import shutil
@@ -35,24 +35,14 @@ def _service_route_prefix() -> str:
     return ""
 
 
-_prefix = _service_route_prefix()
-from app.main import app as _fastapi_app  # noqa: E402
+from app.main import app  # noqa: E402
 
+_prefix = _service_route_prefix()
 if _prefix:
 
-    class _StripPrefix:
-        def __init__(self, inner, prefix: str):
-            self.inner = inner
-            self.prefix = prefix.rstrip("/")
-
-        async def __call__(self, scope, receive, send):
-            if scope["type"] == "http":
-                path = scope.get("path", "")
-                if path == self.prefix or path.startswith(self.prefix + "/"):
-                    scope = dict(scope)
-                    scope["path"] = path[len(self.prefix) :] or "/"
-            await self.inner(scope, receive, send)
-
-    app = _StripPrefix(_fastapi_app, _prefix)
-else:
-    app = _fastapi_app
+    @app.middleware("http")
+    async def _strip_service_prefix(request, call_next):
+        path = request.scope.get("path", "")
+        if path == _prefix or path.startswith(_prefix + "/"):
+            request.scope["path"] = path[len(_prefix) :] or "/"
+        return await call_next(request)
