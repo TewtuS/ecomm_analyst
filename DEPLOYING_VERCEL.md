@@ -34,12 +34,14 @@ Click **Deploy**. Vercel builds each service separately:
 
 The browser calls `/_/backend/api/...` for JSON and `/_/backend/images/...` for product images.
 
-### 4. Login
+### 4. Login (demo)
 
 ```
 Email:    demo@example.com
 Password: demo1234
 ```
+
+On Vercel, demo data loads automatically: the bundled `ecommerce.db` is copied to `/tmp`, or CSV seed runs on first request if the DB is empty. No manual `python seed.py` step.
 
 ---
 

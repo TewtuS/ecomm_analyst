@@ -9,7 +9,12 @@
     "backend": {
       "entrypoint": "backend/main.py",
       "routePrefix": "/_/backend",
-      "framework": "fastapi"
+      "framework": "fastapi",
+      "includeFiles": [
+        "backend/ecommerce.db",
+        "backend/data_200/**",
+        "backend/data200/**"
+      ]
     }
   }
 }
