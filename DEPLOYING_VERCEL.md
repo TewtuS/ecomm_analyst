@@ -116,6 +116,7 @@ The frontend build generates `_redirects` / proxy rules for static export hosts.
 | Issue | Fix |
 |-------|-----|
 | Build fails / services not detected | Framework Preset must be **Services**; `experimentalServices` must be in `vercel.json`. |
+| `backend must specify framework, entrypoint...` | Use `entrypoint` + `framework` in `vercel.json` (not `root`). Redeploy latest `main`. |
 | 404 on `/_/backend/api/...` | Confirm Root Directory is `ecomm_analyst` and `backend/main.py` exists. |
 | CORS errors | Let Vercel manage `FRONTEND_URL`; don't override unless using a custom domain. |
 | Images missing | Ensure `backend/data200/image/` is committed to git. |
