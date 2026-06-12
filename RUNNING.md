@@ -88,7 +88,13 @@ Password: demo1234
 
 ---
 
-## 5. Production Notes
+## 5. Deploy on Vercel
+
+See **[DEPLOYING_VERCEL.md](./DEPLOYING_VERCEL.md)**. Uses Vercel **Services** (`experimentalServices` in `vercel.json`): Next.js at `/`, FastAPI at `/_/backend`. Set Framework Preset to **Services** when importing the repo.
+
+---
+
+## 6. Production Notes
 
 - **Switch to PostgreSQL**: Uncomment `psycopg2-binary==2.9.9` in `requirements.txt` and update `DATABASE_URL` in `.env`
 - **SECRET_KEY**: Replace with a long random string (e.g. `openssl rand -hex 32`)

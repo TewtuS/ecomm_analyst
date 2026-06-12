@@ -1,12 +1,15 @@
 /**
- * Public env (NEXT_PUBLIC_*) baked in at `next build` for static export.
+ * Public env (NEXT_PUBLIC_*) for API origin.
  *
- * - **API URL:** Prefer `NEXT_PUBLIC_API_URL` (see `frontend/.env.local`). `next.config.js` sets
- *   `NEXT_PUBLIC_BROWSER_API_BASE` for the client; this file reads that when present.
- * - **Direct API (no same-origin proxy):** `NEXT_PUBLIC_API_USE_PROXY=0` if you use a static host
- *   that does not use `_redirects` forwarding.
+ * - **Vercel Services:** `NEXT_PUBLIC_BACKEND_URL` (auto-injected, e.g. `/_/backend`)
+ * - **Static export / local:** `NEXT_PUBLIC_API_URL` or baked `NEXT_PUBLIC_BROWSER_API_BASE`
  */
 export function getPublicApiUrl(): string {
+  const backend = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_BACKEND_URL : undefined;
+  if (backend?.trim()) {
+    return backend.trim().replace(/\/$/, "");
+  }
+
   const baked =
     typeof process !== "undefined" ? process.env.NEXT_PUBLIC_BROWSER_API_BASE : undefined;
   if (baked !== undefined) {

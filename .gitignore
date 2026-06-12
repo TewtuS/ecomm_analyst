@@ -39,6 +39,7 @@ env/
 # Node / Frontend
 node_modules/
 frontend/public/_redirects
+frontend/vercel.json
 .next/
 out/
 .next
